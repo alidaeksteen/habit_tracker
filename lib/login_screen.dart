@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'register_screen.dart';
-import 'habit_tracker_screen.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'habit_tracker_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -24,7 +26,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-
     // Initialize video from local asset
     _videoController = VideoPlayerController.asset('assets/videos/background.mp4')
       ..initialize().then((_) {
@@ -54,8 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Login logic
-  void _login() {
+  // Login logic with SharedPreferences
+  void _login() async {
     final username = _usernameController.text;
     final password = _passwordController.text;
 
@@ -64,7 +65,15 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
     if (username == defaultUsername && password == defaultPassword) {
+      // Save user data in SharedPreferences
+      await prefs.setString('name', 'Test User');
+      await prefs.setString('username', 'testuser');
+      await prefs.setDouble('age', 25);
+      await prefs.setString('country', 'United States');
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -72,6 +81,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
+      // Clear any stored preferences on failed login
+      await prefs.clear();
       _showToast('Invalid username or password');
     }
   }
@@ -104,33 +115,31 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false, // Prevents resizing when keyboard opens
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Full-width video background with vertical cropping
-      Positioned.fill(
-  child: _videoController.value.isInitialized
-      ? ClipRect(
-          child: SizedBox.expand(
-            child: FittedBox(
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-              child: SizedBox(
-                width: _videoController.value.size.width,
-                height: _videoController.value.size.height,
-                child: VideoPlayer(_videoController),
-              ),
-            ),
+          // Full-width video background
+          Positioned.fill(
+            child: _videoController.value.isInitialized
+                ? ClipRect(
+                    child: SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          width: _videoController.value.size.width,
+                          height: _videoController.value.size.height,
+                          child: VideoPlayer(_videoController),
+                        ),
+                      ),
+                    ),
+                  )
+                : Container(color: Colors.black),
           ),
-        )
-      : Container(color: Colors.black),
-),
-
           // Semi-transparent overlay
           Positioned.fill(
             child: Container(color: Colors.black.withOpacity(0.4)),
           ),
-
           // Login form
           Center(
             child: SingleChildScrollView(
@@ -147,14 +156,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 30),
-
                   _buildInputField(
                     controller: _usernameController,
                     hint: 'Enter Username',
                     icon: Icons.email,
                   ),
                   const SizedBox(height: 20),
-
                   _buildInputField(
                     controller: _passwordController,
                     hint: 'Enter Password',
@@ -162,7 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: true,
                   ),
                   const SizedBox(height: 20),
-
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
@@ -174,7 +180,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   ElevatedButton(
                     onPressed: _login,
                     style: ElevatedButton.styleFrom(
@@ -194,10 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   const Text('or', style: TextStyle(color: Colors.white70)),
                   const SizedBox(height: 10),
-
                   OutlinedButton(
                     onPressed: () {
                       Navigator.push(
@@ -228,4 +231,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
