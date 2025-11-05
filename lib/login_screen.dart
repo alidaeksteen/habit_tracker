@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'habit_tracker_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({Key? key}) : super(key: key);
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -22,9 +26,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _videoController = VideoPlayerController.asset(
-      'assets/videos/background.mp4', // <-- Put your video here
-    )
+    // Initialize video from local asset
+    _videoController = VideoPlayerController.asset('assets/videos/background.mp4')
       ..initialize().then((_) {
         _videoController.setLooping(true);
         _videoController.play();
@@ -40,34 +43,103 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    print("login logic here");
+  // Show toast messages
+  void _showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+  }
+
+  // Login logic with SharedPreferences
+  void _login() async {
+    final username = _usernameController.text;
+    final password = _passwordController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      _showToast('Please fill in all fields');
+      return;
+    }
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    if (username == defaultUsername && password == defaultPassword) {
+      // Save user data in SharedPreferences
+      await prefs.setString('name', 'Test User');
+      await prefs.setString('username', 'testuser');
+      await prefs.setDouble('age', 25);
+      await prefs.setString('country', 'United States');
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HabitTrackerScreen(username: username),
+        ),
+      );
+    } else {
+      // Clear any stored preferences on failed login
+      await prefs.clear();
+      _showToast('Invalid username or password');
+    }
+  }
+
+  // Reusable input field widget
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: Colors.blue.shade700),
+          hintText: hint,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Video background
-          _videoController.value.isInitialized
-              ? SizedBox.expand(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: _videoController.value.size.width,
-                      height: _videoController.value.size.height,
-                      child: VideoPlayer(_videoController),
+          // Full-width video background
+          Positioned.fill(
+            child: _videoController.value.isInitialized
+                ? ClipRect(
+                    child: SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          width: _videoController.value.size.width,
+                          height: _videoController.value.size.height,
+                          child: VideoPlayer(_videoController),
+                        ),
+                      ),
                     ),
-                  ),
-                )
-              : Container(color: Colors.black),
-
-          // Semi-transparent overlay for readability
-          Container(
-            color: Colors.black.withOpacity(0.4),
+                  )
+                : Container(color: Colors.black),
           ),
-
+          // Semi-transparent overlay
+          Positioned.fill(
+            child: Container(color: Colors.black.withOpacity(0.4)),
+          ),
           // Login form
           Center(
             child: SingleChildScrollView(
@@ -84,41 +156,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 30),
-                  // Username
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: TextField(
-                      controller: _usernameController,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.email, color: Colors.blue.shade700),
-                        hintText: 'Enter Username',
-                        border: InputBorder.none,
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                      ),
-                    ),
+                  _buildInputField(
+                    controller: _usernameController,
+                    hint: 'Enter Username',
+                    icon: Icons.email,
                   ),
                   const SizedBox(height: 20),
-                  // Password
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.lock, color: Colors.blue.shade700),
-                        hintText: 'Enter Password',
-                        border: InputBorder.none,
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                      ),
-                    ),
+                  _buildInputField(
+                    controller: _passwordController,
+                    hint: 'Enter Password',
+                    icon: Icons.lock,
+                    obscureText: true,
                   ),
                   const SizedBox(height: 20),
                   Align(
@@ -139,8 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30.0),
                       ),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
+                      padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
                     ),
                     child: const Text(
                       'Log in',
@@ -152,16 +199,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'or',
-                    style: TextStyle(color: Colors.white70),
-                  ),
+                  const Text('or', style: TextStyle(color: Colors.white70)),
                   const SizedBox(height: 10),
                   OutlinedButton(
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const RegisterScreen(),
+                        ),
                       );
                     },
                     style: OutlinedButton.styleFrom(
@@ -169,8 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30.0),
                       ),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 70, vertical: 15),
+                      padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 15),
                     ),
                     child: const Text(
                       'Sign up',
