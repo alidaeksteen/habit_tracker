@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -12,7 +12,8 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
-  double _age = 25; // Default age set to 25
+  final _passwordController = TextEditingController(); // Added password
+  double _age = 25; // Default age
   String _country = 'United States';
   List<String> _countries = [];
   List<String> selectedHabits = [];
@@ -51,15 +52,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ];
 
     setState(() {
-      _countries = subsetCountries;
-      _countries.sort();
+      _countries = subsetCountries..sort();
       _country = _countries.isNotEmpty ? _countries[0] : 'United States';
     });
   }
 
-  void _register() async {
-    // dummy for now
-    print("registration logic here");
+  Future<void> _register() async {
+    String name = _nameController.text.trim();
+    String username = _usernameController.text.trim();
+    String password = _passwordController.text.trim();
+
+    if (name.isEmpty || username.isEmpty || password.isEmpty) {
+      _showError('All fields are required');
+      return;
+    }
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('name', name);
+    await prefs.setString('username', username);
+    await prefs.setString('password', password);
+
+    _showSuccess('Registration successful!');
+    // Navigate back to login
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
   }
 
   @override
@@ -86,21 +116,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
       body: Container(
-        color: Color(0xFFCED7E0), // solid background
+        color: const Color(0xFFCED7E0), // solid background
         child: Center(
           child: SingleChildScrollView(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildInputField(_nameController, 'Name', Icons.person),
                 const SizedBox(height: 10),
-                _buildInputField(
-                    _usernameController, 'Username', Icons.alternate_email),
+                _buildInputField(_usernameController, 'Username', Icons.alternate_email),
                 const SizedBox(height: 10),
-                Text('Age: ${_age.round()}',
-                    style: const TextStyle(color: Colors.white, fontSize: 18)),
+                _buildInputField(_passwordController, 'Password', Icons.lock, obscureText: true),
+                const SizedBox(height: 10),
+                Text('Age: ${_age.round()}', style: const TextStyle(color: Colors.white, fontSize: 18)),
                 Slider(
                   value: _age,
                   min: 21,
@@ -117,37 +146,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 10),
                 _buildCountryDropdown(),
                 const SizedBox(height: 10),
-                const Text('Select Your Habits',
-                    style: TextStyle(color: Colors.white, fontSize: 18)),
+                const Text('Select Your Habits', style: TextStyle(color: Colors.white, fontSize: 18)),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: availableHabits.map((habit) {
                     final isSelected = selectedHabits.contains(habit);
                     return GestureDetector(
-                      onTap: () => null,
+                      onTap: () {
+                        setState(() {
+                          if (isSelected) {
+                            selectedHabits.remove(habit);
+                          } else {
+                            selectedHabits.add(habit);
+                          }
+                        });
+                      },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          color:
-                              isSelected ? Colors.blue.shade600 : Colors.white,
+                          color: isSelected ? Colors.blue.shade600 : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.blue.shade700),
                         ),
                         child: Text(
                           habit,
                           style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.blue.shade700,
+                            color: isSelected ? Colors.white : Colors.blue.shade700,
                           ),
                         ),
                       ),
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 180),
+                const SizedBox(height: 30),
                 Center(
                   child: ElevatedButton(
                     onPressed: _register,
@@ -155,18 +187,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       backgroundColor: Colors.blue.shade600,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30.0),
-                        side: BorderSide(color: Colors.white, width: 1), // white border
+                        side: const BorderSide(color: Colors.white, width: 1),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 80, vertical: 15),
+                      padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
                     ),
                     child: const Text(
                       'Register',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -178,8 +205,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildInputField(
-      TextEditingController controller, String hint, IconData icon) {
+  Widget _buildInputField(TextEditingController controller, String hint, IconData icon,
+      {bool obscureText = false}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -187,12 +214,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       child: TextField(
         controller: controller,
+        obscureText: obscureText,
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.blue.shade700),
           hintText: hint,
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         ),
       ),
     );
